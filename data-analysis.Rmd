@@ -1,6 +1,74 @@
 ---
-title: Traffic Data Analysis
+title: "Traffic Data Analysis"
 output: html_document
 ---
 
-this is where things start :)
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(stargazer)
+```
+
+# Data processing
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data <- read.csv("all-semi-unique.csv")
+summary(be2olak.data) %>% kable()
+str(be2olak.data) %>% kable()
+```
+
+
+***
+
+By analyzing the distribution of some columns, I found that some of the columns only have one value, so these columns are not needed and should be deleted from the data.
+
+
+The columns that will be deleted are the following:
+
+* ad.aid
+* ad.bgcl
+* ad.bgcls
+* ad.fncl
+* ad.fncls
+* ad.lid
+* ad.logo
+* ad.logo2x
+* ad.logoAndroidS
+* ad.logoAndroidH
+* ad.cm
+* ad.url
+* ad.g
+* rd.cl
+* rd.rp.type
+
+***
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data <- subset(be2olak.data, select=-c(2:14,22,34))
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+summary(be2olak.data) %>% kable()
+str(be2olak.data) %>% kable()
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data[duplicated(be2olak.data[,2:ncol(be2olak.data)]),]
+stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
+```
+
+Try the plots:
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data %>% head() %>% kable(booktabes=TRUE)
+```
+
+***
+
+```{r, eval=F, tidy=TRUE, cache=TRUE}
+library(rmarkdown)
+render("data-analysis.Rmd")
+```
