@@ -4,7 +4,7 @@ output: html_document
 ---
 
 
-```{r}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(ggplot2)
 library(dplyr)
 library(knitr)
@@ -15,12 +15,14 @@ library(stargazer)
 
 ```{r, tidy=TRUE, cache=TRUE}
 be2olak.data <- read.csv("all-semi-unique.csv")
-summary(be2olak.data) %>% kable()
-str(be2olak.data) %>% kable()
+summary(be2olak.data)
+str(be2olak.data)
 ```
 
 
 ***
+
+## Removing not needed columns
 
 By analyzing the distribution of some columns, I found that some of the columns only have one value, so these columns are not needed and should be deleted from the data.
 
@@ -46,13 +48,27 @@ The columns that will be deleted are the following:
 ***
 
 ```{r, tidy=TRUE, cache=TRUE}
-be2olak.data <- subset(be2olak.data, select=-c(2:14,22,34))
+col_ct = sapply(be2olak.data, function(x) length(unique(x)))
+print(col_ct)
+#be2olak.data <- subset(be2olak.data, select=-c(2:14,22,34))
+be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
+sum(is.na(be2olak.data$rd.img))
+nrow(be2olak.data)
+be2olak.data[!is.na(be2olak.data$rd.img),]
 ```
 
 
 ```{r, tidy=TRUE, cache=TRUE}
-summary(be2olak.data) %>% kable()
-str(be2olak.data) %>% kable()
+unique(be2olak.data$rd.rp.cmid)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+summary(be2olak.data)
+str(be2olak.data)
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -60,11 +76,18 @@ be2olak.data[duplicated(be2olak.data[,2:ncol(be2olak.data)]),]
 stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
 ```
 
-Try the plots:
+The proportion of NAs:
 
 ```{r, tidy=TRUE, cache=TRUE}
-be2olak.data %>% head() %>% kable(booktabes=TRUE)
+length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
+barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
+
+Check for duplicated rows:
+```{r, tidy=TRUE, cache=TRUE}
+nrow(be2olak.data) - nrow(unique(be2olak.data)) 
+```
+
 
 ***
 
