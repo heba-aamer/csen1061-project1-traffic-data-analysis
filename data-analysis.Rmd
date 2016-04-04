@@ -118,22 +118,6 @@ be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1]
 ## Plotting graphs for the different columns
 
 ```{r, tidy=TRUE, cache=TRUE}
-plot(be2olak.data$rd.rp.cm)
-barplot(be2olak.data$rd.rp.stid, names.arg=be2olak.data$rd.rp.cm, horiz=TRUE, las=1, cex.names=1, border=NA)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-boxplot(be2olak.data$rd.rp.stid)
-barplot(be2olak.data$rd.rp.stid)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-#comments <- be2olak.data$rd.rp.cm
-#comments.freq <- table(comments)
-#print(comments.freq)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
 status <- be2olak.data$rd.rp.stid
 status.freq <- table(status)
 print(status.freq)
