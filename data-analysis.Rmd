@@ -9,6 +9,7 @@ library(ggplot2)
 library(dplyr)
 library(knitr)
 library(stargazer)
+library(MASS)
 ```
 
 # Data processing
@@ -55,15 +56,15 @@ be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1]
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
-nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
-sum(is.na(be2olak.data$rd.img))
-nrow(be2olak.data)
-be2olak.data[!is.na(be2olak.data$rd.img),]
+##nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
+#sum(is.na(be2olak.data$rd.img))
+#nrow(be2olak.data)
+#be2olak.data[!is.na(be2olak.data$rd.img),]
 ```
 
 
 ```{r, tidy=TRUE, cache=TRUE}
-unique(be2olak.data$rd.rp.cmid)
+#sum(unique(be2olak.data$rd.rp.cmid))
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -83,6 +84,8 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
 
+## Removing Duplicated columns
+
 Remove duplicated comments:
 ```{r, tidy=TRUE, cache=TRUE}
 dim(be2olak.data)
@@ -93,8 +96,49 @@ dim(be2olak.data)
 Check data summary again after removing the duplicated rows:
 ```{r, tidy=TRUE, cache=TRUE}
 stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
+summary(be2olak.data)
+str(be2olak.data)
 ```
 
+
+The proportion of NAs:
+
+```{r, tidy=TRUE, cache=TRUE}
+length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+col_ct = sapply(be2olak.data, function(x) length(unique(x)))
+print(col_ct)
+be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
+```
+
+***
+
+## Plotting graphs for the different columns
+
+```{r, tidy=TRUE, cache=TRUE}
+plot(be2olak.data$rd.rp.cm)
+barplot(be2olak.data$rd.rp.stid, names.arg=be2olak.data$rd.rp.cm, horiz=TRUE, las=1, cex.names=1, border=NA)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+boxplot(be2olak.data$rd.rp.stid)
+barplot(be2olak.data$rd.rp.stid)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+#comments <- be2olak.data$rd.rp.cm
+#comments.freq <- table(comments)
+#print(comments.freq)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+status <- be2olak.data$rd.rp.stid
+status.freq <- table(status)
+print(status.freq)
+barplot(status.freq)
+```
 
 ***
 
