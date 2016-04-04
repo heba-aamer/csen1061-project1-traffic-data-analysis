@@ -83,9 +83,16 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
 
-Check for duplicated rows:
+Remove duplicated comments:
 ```{r, tidy=TRUE, cache=TRUE}
-nrow(be2olak.data) - nrow(unique(be2olak.data)) 
+dim(be2olak.data)
+be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
+dim(be2olak.data)
+```
+
+Check data summary again after removing the duplicated rows:
+```{r, tidy=TRUE, cache=TRUE}
+stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
 ```
 
 
