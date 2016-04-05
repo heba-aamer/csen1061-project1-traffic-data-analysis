@@ -3,6 +3,7 @@ title: "Traffic Data Analysis"
 output: html_document
 ---
 
+# Needed Libraries
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(ggplot2)
@@ -12,7 +13,7 @@ library(stargazer)
 library(MASS)
 ```
 
-# Data processing
+# Data Processing
 
 ```{r, tidy=TRUE, cache=TRUE}
 be2olak.data <- read.csv("all-semi-unique.csv")
@@ -20,6 +21,10 @@ summary(be2olak.data)
 str(be2olak.data)
 ```
 
+```{r, tidy=TRUE, cache=TRUE}
+#duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid == 9344516), ]
+#duplicated.rows
+```
 
 ***
 
@@ -55,16 +60,18 @@ print(col_ct)
 be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
 ```
 
+Moreover, the 3 columns (rd.stid, rd.hr, rd.mn) are meaningless so I will remove them:
+
+```{r, tidy=TRUE, cache=TRUE}
+col_ct = c("rd.stid", "rd.hr", "rd.mn")
+be2olak.data <- be2olak.data[, !names(be2olak.data) %in% col_ct]
+```
+
 ```{r, tidy=TRUE, cache=TRUE}
 ##nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
 #sum(is.na(be2olak.data$rd.img))
 #nrow(be2olak.data)
 #be2olak.data[!is.na(be2olak.data$rd.img),]
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-#sum(unique(be2olak.data$rd.rp.cmid))
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -84,7 +91,9 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
 
-## Removing Duplicated columns
+***
+
+## Removing Duplicated Rows
 
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -104,6 +113,15 @@ be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.d
 dim(be2olak.data)
 ```
 
+
+```{r, tidy=TRUE, cache=TRUE}
+##nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
+#sum(is.na(be2olak.data$rd.img))
+#nrow(be2olak.data)
+#be2olak.data[!is.na(be2olak.data$rd.img),]
+be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
+```
+
 ```{r, tidy=TRUE, cache=TRUE}
 unique.cmid <- aggregate(rd.rp.stid ~ rd.rp.cmid, be2olak.data, length)
 duplicated.cmid <- unique.cmid[ which(unique.cmid$rd.rp.stid > 1), ]
@@ -114,7 +132,7 @@ tail(duplicated.cmid)
 
 ```{r, tidy=TRUE, cache=TRUE}
 duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% c(9338101,9338109,9338128,9338160,9338196,9338203)), ]
-duplicated.rows[,c(1,4:11,13:18)]
+duplicated.rows
 ```
 
 Check data summary again after removing the duplicated rows:
