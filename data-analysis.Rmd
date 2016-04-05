@@ -86,11 +86,35 @@ barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 
 ## Removing Duplicated columns
 
+
+```{r, tidy=TRUE, cache=TRUE}
+nrow(unique(be2olak.data[c("crawl_date", "rd.rp.stid", "rd.rp.cmid")]))
+nrow(unique(be2olak.data[c("rd.rp.stid", "rd.rp.cmid")]))
+nrow(unique(be2olak.data[c("rd.rp.cmid")]))
+#dups <- duplicated(be2olak.data[,c(1,15,17)])
+#print(dups)
+#be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
+```
+
 Remove duplicated comments:
 ```{r, tidy=TRUE, cache=TRUE}
 dim(be2olak.data)
-be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
+#be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
+be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data) %in% c("rd.rp.cmid", "rd.rp.stid") )]),]
 dim(be2olak.data)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+unique.cmid <- aggregate(rd.rp.stid ~ rd.rp.cmid, be2olak.data, length)
+duplicated.cmid <- unique.cmid[ which(unique.cmid$rd.rp.stid > 1), ]
+head(duplicated.cmid)
+tail(duplicated.cmid)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% c(9338101,9338109,9338128,9338160,9338196,9338203)), ]
+duplicated.rows[,c(1,4:11,13:18)]
 ```
 
 Check data summary again after removing the duplicated rows:
@@ -121,8 +145,34 @@ be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1]
 status <- be2olak.data$rd.rp.stid
 status.freq <- table(status)
 print(status.freq)
+str(status.freq)
 barplot(status.freq)
 ```
+
+```{r, tidy=TRUE, cache=TRUE}
+hist(status,xlab = "Comment status")
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+stid.nas <- sum(is.na(be2olak.data$rd.rp.stid))
+print(stid.nas)
+stid.nas/(nrow(be2olak.data)) 
+ggplot(be2olak.data) + geom_bar(aes(x=rd.rp.stid), fill="gray")
+```
+
+By Montoring Be2ollak website, I was able to find most of those status look like:
+
+* 1 --> :D
+* 2 --> :)
+* 3 --> :|
+* 4 --> :(
+* 5 --> :'(
+* 6 --> ?
+* 7 --> Danger Skull
+* 10 --> lamb
+
+However, 8 and 9 were difficult to find in the feed.
+
 
 ***
 
