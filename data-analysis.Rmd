@@ -252,15 +252,44 @@ summary(new.data)
 
 ## Add the city for each entry
 
+First, get the ids of the roads in Cairo.
+
 ```{r, tidy=TRUE, cache=TRUE}
+
+# Get Cairo Road ids
+
 doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=0&lang=1")
 cairo.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
 length(cairo.roads.id)
+
+```
+
+Then, get the ids of the roads in Alex.
+
+```{r, tidy=TRUE, cache=TRUE}
+
+# Get Alex Road ids
 
 doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=1&lang=1")
 alex.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
 length(alex.roads.id)
 ```
+
+Then, add column representing the city in each row in the dataframe.
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data$city <- ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex")
+str(be2olak.data)
+ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
+```
+
+#### Ideas for Hypothese
+
+* [1] The ratio of negative reports in Cairo is much higher than in Alex.
+* [2] The ratio of negative reports on Firday is less than any other day in the week.
+* [3] In (3otl, 7adsa, khatar), the probabitity of uploading an image in a report is significantly higher than in normal times.
+* [4] Leaving the default message of a status is higher than of write customized ones.
+* [5] [7:30 am - 9 am] and [2 pm - 4 pm] have higher rate of negative reports than in other times of the day.
 
 ***
 
