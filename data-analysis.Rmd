@@ -13,6 +13,9 @@ library(stargazer)
 library(MASS)
 library(pracma)
 library(tidyr)
+library(lubridate)
+library(XML)
+library(methods)
 ```
 
 # Data Processing
@@ -222,9 +225,9 @@ However, 8 and 9 were difficult to find in the feed.
 
 ***
 
-## Feature Engineering
+# Feature Engineering
 
-### Format Crawl Date in a better way
+## Format Crawl Date in a better way
 
 ```{r, tidy=TRUE, cache=TRUE}
 new.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = TRUE, remove = TRUE) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = FALSE)
@@ -239,9 +242,25 @@ summary(new.data)
 
 ***
 
-### Get Comment's Actual Time
+## Get Comment's Actual Time
 
+```{r, tidy=TRUE, cache=TRUE}
+new.data$comment.time <- new.data$formated.date - hours(new.data$rd.rp.hr) - minutes(new.data$rd.rp.mn)
+str(new.data)
+summary(new.data)
+```
 
+## Add the city for each entry
+
+```{r, tidy=TRUE, cache=TRUE}
+doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=0&lang=1")
+cairo.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
+length(cairo.roads.id)
+
+doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=1&lang=1")
+alex.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
+length(alex.roads.id)
+```
 
 ***
 
