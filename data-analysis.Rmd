@@ -12,6 +12,7 @@ library(knitr)
 library(stargazer)
 library(MASS)
 library(pracma)
+library(tidyr)
 ```
 
 # Data Processing
@@ -61,10 +62,15 @@ print(col_ct)
 be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
 ```
 
-Moreover, the 3 columns (rd.stid, rd.hr, rd.mn) are meaningless so I will remove them:
+Moreover, the 6 columns (rd.stid, rd.hr, rd.mn, ) are meaningless so I will remove them:
 
 ```{r, tidy=TRUE, cache=TRUE}
-col_ct = c("rd.stid", "rd.hr", "rd.mn")
+col_ct = c("rd.stid", "rd.hr", "rd.mn", "rd.rp.fullnm", "rd.img", "rd.rp.img")
+print(col_ct)
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+print(!names(be2olak.data) %in% col_ct)
 be2olak.data <- be2olak.data[, !names(be2olak.data) %in% col_ct]
 ```
 
@@ -89,7 +95,7 @@ The proportion of NAs:
 
 ```{r, tidy=TRUE, cache=TRUE}
 length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
-barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
+#barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
 
 ***
@@ -118,7 +124,7 @@ dim(be2olak.data)
 ```{r, tidy=TRUE, cache=TRUE}
 strq.cmrq <- be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
 nrow(strq.cmrq)
-head(strq.cmrq[,c(2:16)])
+head(strq.cmrq[,c(2:13)])
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -131,7 +137,7 @@ tail(duplicated.cmid)
 
 ```{r, tidy=TRUE, cache=TRUE}
 duplicated.cmid.vector <- rbind(duplicated.cmid$rd.rp.cmid)
-print(duplicated.cmid.vector)
+#print(duplicated.cmid.vector)
 duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% duplicated.cmid.vector), ]
 nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
 ```
@@ -162,6 +168,15 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 col_ct = sapply(be2olak.data, function(x) length(unique(x)))
 print(col_ct)
 be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
+```
+
+Get the most frequent strings in comments column
+
+```{r, tidy=TRUE, cache=TRUE}
+freqfunc <- function(x, n){
+  tail(sort(table(unlist(strsplit(as.character(x), ", ")))), n)
+}
+freqfunc(be2olak.data$rd.rp.cm, 10)
 ```
 
 ***
@@ -199,6 +214,33 @@ By Montoring Be2ollak website, I was able to find most of those status look like
 * 10 --> lamb
 
 However, 8 and 9 were difficult to find in the feed.
+
+
+```{r, tidy=TRUE, cache=TRUE}
+#write.csv(be2olak.data, file = "MyData.csv",row.names=FALSE)
+```
+
+***
+
+## Feature Engineering
+
+### Format Crawl Date in a better way
+
+```{r, tidy=TRUE, cache=TRUE}
+new.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = TRUE, remove = TRUE) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = FALSE)
+summary(new.data)
+str(new.data)
+new.data$formated.date <- as.POSIXct(strptime(new.data$Crawl.time, format="%a %b %d %H:%M:%S"))
+str(new.data)
+summary(new.data)
+#new.data$Crawl_date <- as.Date(as.character(new.data$Crawl_date))
+#str(new.data)
+```
+
+***
+
+### Get Comment's Actual Time
+
 
 
 ***
