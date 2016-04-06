@@ -11,6 +11,7 @@ library(dplyr)
 library(knitr)
 library(stargazer)
 library(MASS)
+library(pracma)
 ```
 
 # Data Processing
@@ -115,11 +116,9 @@ dim(be2olak.data)
 
 
 ```{r, tidy=TRUE, cache=TRUE}
-##nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
-#sum(is.na(be2olak.data$rd.img))
-#nrow(be2olak.data)
-#be2olak.data[!is.na(be2olak.data$rd.img),]
-be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
+strq.cmrq <- be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
+nrow(strq.cmrq)
+head(strq.cmrq[,c(2:16)])
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -131,8 +130,18 @@ tail(duplicated.cmid)
 
 
 ```{r, tidy=TRUE, cache=TRUE}
-duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% c(9338101,9338109,9338128,9338160,9338196,9338203)), ]
-duplicated.rows
+duplicated.cmid.vector <- rbind(duplicated.cmid$rd.rp.cmid)
+print(duplicated.cmid.vector)
+duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% duplicated.cmid.vector), ]
+nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
+```
+
+From above we reached that duplicated rows are only existing when rd.rp.nm is "be2ollakgps"
+
+
+```{r, tidy=TRUE, cache=TRUE}
+stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10),]) * 100.0/ nrow(duplicated.rows)
+print(stid10.percentage)
 ```
 
 Check data summary again after removing the duplicated rows:
