@@ -93,7 +93,7 @@ Checking data summary again after removing the duplicated rows:
 
 ```{r, tidy=TRUE, cache=TRUE}
 dim(be2olak.data)
-stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
+stargazer(be2olak.data, type = "text", title = "Bey2ollak Data")
 summary(be2olak.data)
 str(be2olak.data)
 ```
@@ -112,6 +112,90 @@ And from the summary results the Nas are there because of 2 columns (rd.rp.stid 
 So for rd.rp.rpImg, it means that the reporter has uploaded a photo for the road. Otherwise, it means the he/she did not.
 
 So for my analysis, I am not concerned with photo itself, I am only concerned with the uploading action. So I will remove this column after adding one that has "YES" or "NO" representing whether this report has an uploaded photo or not.
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data$rp.has.photo <- as.factor(ifelse(is.na(be2olak.data$rd.rp.rpImg), "NO", "YES"))
+be2olak.data$rd.rp.rpImg <- NULL
+```
+
+So check on the proportion of NAs again
+
+```{r, tidy=TRUE, cache=TRUE}
+length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+dim(be2olak.data)
+stargazer(be2olak.data, type = "text", title = "Bey2ollak Data")
+summary(be2olak.data)
+str(be2olak.data)
+```
+
+Now lets get to the other column which is the rd.rp.stid
+
+#### Exploring the NAs of the rd.rp.stid column
+
+Note, here is a function taken from online resource that I will be using in my analysis
+
+```{r, tidy=TRUE, cache=TRUE}
+freqfunc <- function(x, n){
+  tail(sort(table(unlist(strsplit(as.character(x), ", ")))), n)
+}
+```
+
+Ok, Let get only the rows where rd.rp.stid is NA
+
+```{r, tidy=TRUE, cache=TRUE}
+missing.stid <- be2olak.data[is.na(be2olak.data$rd.rp.stid), c("rd.rp.cm", "rd.nm")]
+str(missing.stid)
+summary(missing.stid)
+ggplot(missing.stid, aes(x = rd.nm, fill = rd.nm)) + geom_bar()
+```
+
+checking most of the comments in those reports
+
+```{r, tidy=TRUE, cache=TRUE}
+freqfunc(missing.stid$rd.rp.cm, 60)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+missing.stid <- missing.stid %>% separate(rd.nm, c("road.main"), extra = "drop", sep = ";", convert = F, remove = F)
+missing.stid$road.main <- as.factor(missing.stid$road.main)
+#missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
+summary(missing.stid)
+#print.data.frame(missing.stid)
+ggplot(missing.stid, aes(x=road.main, y=rd.nm)) + geom_jitter()
+```
+
+So after analyzing the rows that has stid with NAs so mainly they are highway roads and roads connecting between cities.
+
+Moreover, The comments are mainly about asking about radar and reporting radars or clear statuses.
+
+Those type of roads would need another analysis, but for my analysis I would remove those roads from the original data frame.
+
+
+```{r, tidy=TRUE, cache=TRUE}
+
+```
+
+
+
+```{r, tidy=TRUE, cache=TRUE}
+#ri.freq <- table(missing.stid$rd.ri)
+#print(ri.freq)
+#str(ri.freq)
+#barplot(ri.freq, main = "Frequency of roads missing stid")
+#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
+#plot(x = missing.stid$rd.ri, y = func)
+```
+
+
+
+***
+***
+***
 
 Get the most frequent strings in comments column
 
@@ -240,7 +324,6 @@ length(alex.roads.id)
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
-
 length(unique(c(unique(alex.roads.id),unique(cairo.roads.id))))
 ```
 
