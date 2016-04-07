@@ -18,6 +18,7 @@ library(tidyr)
 library(lubridate)
 library(XML)
 library(pastecs)
+library(corrplot)
 ```
 
 ### Reading and Processing Data
@@ -197,13 +198,15 @@ So to do this, there are 2 main steps:
 
 * Then get the actual reports date (taking into consideration the difference between EET and UCT).
 
-```{r, tidy=T}
+```{r, tidy=T, cache=T}
 be2olak.data <- be2olak.data %>% separate(crawl_date, c("week.day", "month", "month.day", "crawl.date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(crawl.time, week.day, month, month.day, crawl.date, sep = " ", remove = F)
 be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$crawl.time, format="%a %b %d %H:%M:%S"))
 be2olak.data$week.day <- as.factor(be2olak.data$week.day)
 ```
 
-```{r, tidy=TRUE}
+Get the hour of the report
+
+```{r, tidy=TRUE, cache=T}
 be2olak.data$report.hr <- hour(be2olak.data$formated.date)
 ```
 
@@ -305,7 +308,7 @@ be2olak.data$road.main <- as.factor(be2olak.data$road.main)
 
 First, Plotting the integer columns and Factored columns.
 
-```{r, tidy=TRUE, c}
+```{r, tidy=TRUE}
 be2olak.data.filtered <- be2olak.data %>% filter(rd.rp.stid < 6)
 # Integer Columns
 ggplot(be2olak.data.filtered, aes(x=rd.rp.stid)) + geom_bar()
@@ -331,85 +334,64 @@ ggplot(be2olak.data.filtered, aes(x=comment.time)) + geom_density()
 
 ### Visualising and Stating statistics for part of data
 
-Of course one of the most important questions, that I am interested to prove is that that
+By Montoring Bey2ollak website, I was able to find most of those status look like:
+
+* 1 --> :D --> 7alawa
+* 2 --> :) --> Lazeez
+* 3 --> :| --> Mashy
+* 4 --> :( --> Zahma
+* 5 --> :'( --> Mafeesh amal
+* 6 --> So2al
+* 7 --> Khatar
+* 8 --> 7adsa
+* 9 --> 3otl
+* 10 --> Ba2ollak
+
+Try to plot correlation matrix
 
 ```{r, tidy=TRUE}
-ggplot(be2olak.data.filtered, aes(y=rd.rp.stid, x=week.day, fill=week.day)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
-
-cor_feats = c("comment.time", "report.hr", "week.day","month.day", "rd.rp.stid", "rd.cmrq", "rd.strq", "rd.new")
+be2olak.data.filtered$week.day <- as.integer(be2olak.data.filtered$week.day)
+cor_feats = c("week.day","report.hr","month.day", "rd.rp.stid", "rd.cmrq", "rd.strq", "rd.new")
 cor_mat = cor(be2olak.data.filtered[, cor_feats], use = "complete")
 corrplot(method = "shade", cor_mat)
+```
 
+The correlation matrix did not show any good relations between columns.
+
+
+Of course one of the most important questions, that I am interested to prove is the that Friday would be the least time having "zahma" in all 
+
+```{r, tidy=TRUE}
+be2olak.data.filtered$week.day <- as.factor(be2olak.data.filtered$week.day)
+
+ggplot(be2olak.data.filtered, aes(y=rd.rp.stid, x=week.day, fill=week.day)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
+
+```
+
+The above graph shows that rd.rp.stid of 1 which corresponds to 7alawa is mainly on Friday only.
+
+```{r, tidy=TRUE}
+
+ggplot(be2olak.data, aes(y=rd.rp.stid, x=week.day, fill=week.day)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
+
+```
+
+```{r, tidy=TRUE}
+be2olak.data.filtered$rd.rp.stid <- as.factor(be2olak.data.filtered$rd.rp.stid)
+
+ggplot(be2olak.data.filtered, aes(y=report.hr, x=rd.rp.stid, fill=rd.rp.stid)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
+
+ggplot(be2olak.data, aes(x=rp.has.photo, y=rd.rp.stid, fill=rp.has.photo)) + geom_boxplot()
 ```
 
 
 ```{r, tidy=TRUE}
-ggplot(be2olak.data.filtered, aes(y=report.hr, x=rd.rp.stid, fill=rd.rp.stid)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
+be2olak.data.filtered$rd.rp.stid <- as.integer(be2olak.data.filtered$rd.rp.stid)
 
-ggplot(be2olak.data.filtered, aes(x=report.hr, y=rd.rp.stid, fill=report.hr)) + geom_jitter()
+temp <- be2olak.data.filtered %>% group_by(week.day) %>% summarise(avg.stid = mean(rd.rp.stid))
+ggplot(temp, aes(x=week.day, y = avg.stid)) + geom_point()
 ```
-
-### Plotting graphs for the different columns
-
-```{r, tidy=TRUE, cache=TRUE}
-status <- be2olak.data$rd.rp.stid
-status.freq <- table(status)
-#pie(status.freq, radius = 1)
-print(status.freq)
-str(status.freq)
-barplot(status.freq)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-hist(status,xlab = "Comment status",10)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-stid.nas <- sum(is.na(be2olak.data$rd.rp.stid))
-print(stid.nas)
-stid.nas/(nrow(be2olak.data)) 
-ggplot(be2olak.data) + geom_bar(aes(x=rd.rp.stid), fill="gray")
-```
-
-By Montoring Be2ollak website, I was able to find most of those status look like:
-
-* 1 --> :D
-* 2 --> :)
-* 3 --> :|
-* 4 --> :(
-* 5 --> :'(
-* 6 --> ?
-* 7 --> Danger Skull
-* 10 --> lamb
-
-However, 8 and 9 were difficult to find in the feed.
-
-
-```{r, tidy=TRUE, cache=TRUE}
-#write.csv(be2olak.data, file = "MyData.csv",row.names=FALSE)
-```
-
-***
-
-```{r, tidy=TRUE, cache=TRUE}
-#ri.freq <- table(missing.stid$rd.ri)
-#print(ri.freq)
-#str(ri.freq)
-#barplot(ri.freq, main = "Frequency of roads missing stid")
-#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
-#plot(x = missing.stid$rd.ri, y = func)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-#write.csv(missing.stid, file = "MissingDataStid.csv",row.names=FALSE)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-
-```
-
+  
 ***
 ### Hypotheses
 
@@ -420,86 +402,6 @@ Here are some ideas for Hypotheses that could be tried
 * [3] In (3otl, 7adsa, khatar), the probabitity of uploading an image in a report is significantly higher than in normal times.
 * [4] Leaving the default message of a status is higher than of write customized ones.
 * [5] [7:30 am - 9 am] and [2 pm - 4 pm] have higher rate of negative reports than in other times of the day.
-
-***
-***
-***
-
-CMRQ and STRQ
-
-```{r, tidy=TRUE, cache=TRUE}
-strq.cmrq <- be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
-nrow(strq.cmrq)
-head(strq.cmrq[,c(2:13)])
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-unique.cmid <- aggregate(rd.rp.stid ~ rd.rp.cmid, be2olak.data, length)
-duplicated.cmid <- unique.cmid[ which(unique.cmid$rd.rp.stid > 1), ]
-head(duplicated.cmid)
-tail(duplicated.cmid)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-duplicated.cmid.vector <- rbind(duplicated.cmid$rd.rp.cmid)
-#print(duplicated.cmid.vector)
-duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% duplicated.cmid.vector), ]
-nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
-```
-
-From above we reached that duplicated rows are only existing when rd.rp.nm is "be2ollakgps"
-
-```{r, tidy=TRUE, cache=TRUE}
-stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10),]) * 100.0/ nrow(duplicated.rows)
-print(stid10.percentage)
-```
-
-
-
-***
-***
-***
-```{r, tidy=TRUE, cache=TRUE}
-missing.stid <- missing.stid %>% separate(rd.nm, c("road.main"), extra = "drop", sep = ";", convert = F, remove = F)
-missing.stid$road.main <- as.factor(missing.stid$road.main)
-#missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
-summary(missing.stid)
-#print.data.frame(missing.stid)
-ggplot(missing.stid, aes(x=road.main, y=rd.nm)) + geom_jitter()
-```
-
-
-
-```{r, tidy=TRUE, cache=TRUE}
-
-```
-
-
-
-```{r, tidy=TRUE, cache=TRUE}
-#ri.freq <- table(missing.stid$rd.ri)
-#print(ri.freq)
-#str(ri.freq)
-#barplot(ri.freq, main = "Frequency of roads missing stid")
-#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
-#plot(x = missing.stid$rd.ri, y = func)
-```
-
-
-
-***
-***
-***
-
-Get the most frequent strings in comments column
-
-```{r, tidy=TRUE, cache=TRUE}
-freqfunc <- function(x, n){
-  tail(sort(table(unlist(strsplit(as.character(x), ", ")))), n)
-}
-freqfunc(be2olak.data$rd.rp.cm, 10)
-```
 
 
 ***
