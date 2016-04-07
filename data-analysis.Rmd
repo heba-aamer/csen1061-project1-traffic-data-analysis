@@ -3,8 +3,6 @@ title: "Traffic Data Analysis"
 output: html_document
 ---
 
-# Needed Libraries
-
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 library(ggplot2)
 library(dplyr)
@@ -16,9 +14,10 @@ library(tidyr)
 library(lubridate)
 library(XML)
 library(methods)
+library(pastecs)
 ```
 
-# Data Processing
+### Data Processing
 
 ```{r, tidy=TRUE, cache=TRUE}
 be2olak.data <- read.csv("all-semi-unique.csv")
@@ -33,7 +32,7 @@ str(be2olak.data)
 
 ***
 
-## Removing not needed columns
+#### Removing not needed columns
 
 By analyzing the distribution of some columns, I found that some of the columns only have one value, so these columns are not needed and should be deleted from the data.
 
@@ -65,7 +64,7 @@ print(col_ct)
 be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
 ```
 
-Moreover, the 6 columns (rd.stid, rd.hr, rd.mn, ) are meaningless so I will remove them:
+Moreover, the 6 columns (rd.stid, rd.hr, rd.mn, rd.rp.fullnm, rd.img, rd.rp.img) are meaningless so I will remove them:
 
 ```{r, tidy=TRUE, cache=TRUE}
 col_ct = c("rd.stid", "rd.hr", "rd.mn", "rd.rp.fullnm", "rd.img", "rd.rp.img")
@@ -103,11 +102,12 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 
 ***
 
-## Removing Duplicated Rows
+#### Removing Duplicated Rows
 
 
 ```{r, tidy=TRUE, cache=TRUE}
 nrow(unique(be2olak.data[c("crawl_date", "rd.rp.stid", "rd.rp.cmid")]))
+nrow(unique(be2olak.data[c("rd.ri", "rd.rp.stid", "rd.rp.cmid")]))
 nrow(unique(be2olak.data[c("rd.rp.stid", "rd.rp.cmid")]))
 nrow(unique(be2olak.data[c("rd.rp.cmid")]))
 #dups <- duplicated(be2olak.data[,c(1,15,17)])
@@ -119,7 +119,7 @@ Remove duplicated comments:
 ```{r, tidy=TRUE, cache=TRUE}
 dim(be2olak.data)
 #be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
-be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data) %in% c("rd.rp.cmid", "rd.rp.stid") )]),]
+be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data) %in% c("rd.rp.cmid", "rd.rp.stid", "rd.ri") )]),]
 dim(be2olak.data)
 ```
 
@@ -184,18 +184,19 @@ freqfunc(be2olak.data$rd.rp.cm, 10)
 
 ***
 
-## Plotting graphs for the different columns
+#### Plotting graphs for the different columns
 
 ```{r, tidy=TRUE, cache=TRUE}
 status <- be2olak.data$rd.rp.stid
 status.freq <- table(status)
+#pie(status.freq, radius = 1)
 print(status.freq)
 str(status.freq)
 barplot(status.freq)
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
-hist(status,xlab = "Comment status")
+hist(status,xlab = "Comment status",10)
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
@@ -225,9 +226,21 @@ However, 8 and 9 were difficult to find in the feed.
 
 ***
 
-# Feature Engineering
+### Feature Engineering
 
-## Format Crawl Date in a better way
+The crawling date is presented in a way that we could make a use of to get the other columns that might help in viewing relations between columns.
+
+Moreover, it will allow us to get the actual date of report from a user, which in case of "za7ma" reports for example, it will get the actual time of the phenomenon.
+
+So to do this, there are 2 main steps:
+
+* First, is to split the crawl date into week day, month, month day, crawl-date (as hours - minutes - seconds) only.
+
+* Then form a new column representing this a formated crawling date.
+
+* Then get the actual reports date (taking into consideration the difference between EET and UCT).
+
+#### Format Crawl Date in a better way
 
 ```{r, tidy=TRUE, cache=TRUE}
 new.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = TRUE, remove = TRUE) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = FALSE)
@@ -242,15 +255,26 @@ summary(new.data)
 
 ***
 
-## Get Comment's Actual Time
+#### Get Comment's Actual Time
 
 ```{r, tidy=TRUE, cache=TRUE}
-new.data$comment.time <- new.data$formated.date - hours(new.data$rd.rp.hr) - minutes(new.data$rd.rp.mn)
+
+# Adding 2 hours to get Egypt's local time instead of UTC
+# Remove the duration of the report has been posted presented by rd.rp.hr and rd.rp.mn
+
+new.data$comment.time <- new.data$formated.date + hours(2) - hours(new.data$rd.rp.hr) - minutes(new.data$rd.rp.mn)
+
 str(new.data)
 summary(new.data)
+glimpse(new.data)
+#View(new.data)
 ```
 
-## Add the city for each entry
+***
+
+Another thing that could be done related to augmenting the data, is to add a column representing the city of each the road being reported on, whether it is "cairo" or "alex". And this is done in the next section.
+
+#### Add the city for each entry
 
 First, get the ids of the roads in Cairo.
 
@@ -278,12 +302,22 @@ length(alex.roads.id)
 Then, add column representing the city in each row in the dataframe.
 
 ```{r, tidy=TRUE, cache=TRUE}
-be2olak.data$city <- ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex")
+be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
 str(be2olak.data)
+levels(be2olak.data$city)
 ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
 ```
 
-#### Ideas for Hypothese
+```{r, tidy=TRUE, cache=TRUE}
+#stat.desc(be2olak.data)
+#tapply(be2olak.data$rd.rp.stid, be2olak.data$city, mean)
+```
+
+***
+
+### Hypotheses
+
+Here are some ideas for Hypotheses that could be tried
 
 * [1] The ratio of negative reports in Cairo is much higher than in Alex.
 * [2] The ratio of negative reports on Firday is less than any other day in the week.
@@ -293,7 +327,7 @@ ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
 
 ***
 
-```{r, eval=F, tidy=TRUE, cache=TRUE}
+```{r, echo=F, eval=F, tidy=TRUE, cache=TRUE}
 library(rmarkdown)
 render("data-analysis.Rmd")
 ```
