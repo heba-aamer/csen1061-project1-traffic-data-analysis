@@ -1,6 +1,10 @@
 ---
 title: "Traffic Data Analysis"
-output: html_document
+output: 
+    html_document:
+      toc: true
+      toc_float: false
+      collapsed: false
 ---
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
@@ -35,25 +39,6 @@ str(be2olak.data)
 #### Removing not needed columns
 
 By analyzing the distribution of some columns, I found that some of the columns only have one value, so these columns are not needed and should be deleted from the data.
-
-
-The columns that will be deleted are the following:
-
-* ad.aid
-* ad.bgcl
-* ad.bgcls
-* ad.fncl
-* ad.fncls
-* ad.lid
-* ad.logo
-* ad.logo2x
-* ad.logoAndroidS
-* ad.logoAndroidH
-* ad.cm
-* ad.url
-* ad.g
-* rd.cl
-* rd.rp.type
 
 ***
 
@@ -104,7 +89,6 @@ length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)
 
 #### Removing Duplicated Rows
 
-
 ```{r, tidy=TRUE, cache=TRUE}
 nrow(unique(be2olak.data[c("crawl_date", "rd.rp.stid", "rd.rp.cmid")]))
 nrow(unique(be2olak.data[c("rd.ri", "rd.rp.stid", "rd.rp.cmid")]))
@@ -146,7 +130,6 @@ nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
 ```
 
 From above we reached that duplicated rows are only existing when rd.rp.nm is "be2ollakgps"
-
 
 ```{r, tidy=TRUE, cache=TRUE}
 stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10),]) * 100.0/ nrow(duplicated.rows)
@@ -315,6 +298,56 @@ ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
 
 ***
 
+### Exploring the NAs of the rd.rp.stid column
+
+```{r, tidy=TRUE, cache=TRUE}
+missing.stid <- be2olak.data[is.na(be2olak.data$rd.rp.stid), c("rd.rp.cm", "rd.ri", "city", "rd.nm")]
+str(missing.stid)
+summary(missing.stid)
+ggplot(missing.stid) + geom_bar(aes(x = city), fill = "gray")
+plot(missing.stid$city, main = "city missing ratio")
+ggplot(missing.stid) + geom_bar(aes(x = rd.ri), fill = "red")
+hist(missing.stid$rd.ri, xlab = "Comment status", 10)
+hist(missing.stid$rd.ri, freq = F, xlab = "Comment status", 40)
+freqfunc(missing.stid$rd.rp.cm, 80)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+missing.stid <- missing.stid %>% separate(rd.nm, c("MainRoad", "PartOfRoad"), extra = "drop", sep = ";", convert = TRUE, remove = F)
+missing.stid$MainRoad <- as.factor(missing.stid$MainRoad)
+missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
+summary(missing.stid)
+#print.data.frame(missing.stid)
+ggplot(missing.stid, aes(x=MainRoad, y=rd.ri)) + geom_tile(aes(fill=city))
+```
+
+So after analyzing the rows that has stid with NAs so mainly they are highway roads and roads connecting between cities, so it is inconvenient for say that they do belong to one city according to the direction of the road.
+
+Moreover, The comments are mainly about asking about radar and reporting radars or clear statuses.
+
+Those type of roads would need another analysis, but for my analysis I would remove those roads from the original data frame.
+
+```{r, tidy=TRUE, cache=TRUE}
+ri.freq <- table(missing.stid$rd.ri)
+print(ri.freq)
+str(ri.freq)
+barplot(ri.freq, main = "Frequency of roads missing stid")
+func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
+plot(x = missing.stid$rd.ri, y = func)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+#write.csv(missing.stid, file = "MissingDataStid.csv",row.names=FALSE)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+
+```
+
+***
 ### Hypotheses
 
 Here are some ideas for Hypotheses that could be tried
