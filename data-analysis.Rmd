@@ -204,10 +204,7 @@ be2olak.data$week.day <- as.factor(be2olak.data$week.day)
 ```
 
 ```{r, tidy=TRUE}
-#be2olak.data <- be2olak.data %>% separate(crawl_date, c("week.day", "month", "month.day", "crawl.date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(crawl.time, week.day, month, month.day, crawl.date, sep = " ", remove = F)
-
-#be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$crawl.time, format="%a %b %d %H:%M:%S"))
-#be2olak.data$week.day <- as.factor(be2olak.data$week.day)
+be2olak.data$report.hr <- hour(be2olak.data$formated.date)
 ```
 
 ***
@@ -308,25 +305,27 @@ be2olak.data$road.main <- as.factor(be2olak.data$road.main)
 
 First, Plotting the integer columns and Factored columns.
 
-```{r, tidy=TRUE}
+```{r, tidy=TRUE, c}
+be2olak.data.filtered <- be2olak.data %>% filter(rd.rp.stid < 6)
 # Integer Columns
-ggplot(be2olak.data, aes(x=rd.rp.stid)) + geom_bar()
-ggplot(be2olak.data, aes(x=rd.ri)) + geom_bar()
-ggplot(be2olak.data, aes(x=month.day)) + geom_bar()
-ggplot(be2olak.data, aes(x=rd.new)) + geom_bar()
-ggplot(be2olak.data, aes(x=rd.strq)) + geom_bar()
-ggplot(be2olak.data, aes(x=rd.cmrq)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.rp.stid)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.ri)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=month.day)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.new)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.strq)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.cmrq)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=report.hr)) + geom_bar()
 
 # Factored Columns
-ggplot(be2olak.data, aes(x=rd.nm)) + geom_bar()
-ggplot(be2olak.data, aes(x=road.main)) + geom_bar()
-ggplot(be2olak.data, aes(x=week.day)) + geom_bar()
-ggplot(be2olak.data, aes(x=rp.has.photo)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rd.nm)) + geom_bar() + coord_flip() 
+ggplot(be2olak.data.filtered, aes(x=road.main)) + geom_bar() + coord_flip()
+ggplot(be2olak.data.filtered, aes(x=week.day)) + geom_bar()
+ggplot(be2olak.data.filtered, aes(x=rp.has.photo)) + geom_bar()
 ```
 
 Second Plotting the time column
 ```{r, tidy=TRUE}
-ggplot(be2olak.data, aes(x=comment.time)) + geom_density()
+ggplot(be2olak.data.filtered, aes(x=comment.time)) + geom_density()
 ```
 
 
@@ -334,7 +333,21 @@ ggplot(be2olak.data, aes(x=comment.time)) + geom_density()
 
 Of course one of the most important questions, that I am interested to prove is that that
 
+```{r, tidy=TRUE}
+ggplot(be2olak.data.filtered, aes(y=rd.rp.stid, x=week.day, fill=week.day)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
 
+cor_feats = c("comment.time", "report.hr", "week.day","month.day", "rd.rp.stid", "rd.cmrq", "rd.strq", "rd.new")
+cor_mat = cor(be2olak.data.filtered[, cor_feats], use = "complete")
+corrplot(method = "shade", cor_mat)
+
+```
+
+
+```{r, tidy=TRUE}
+ggplot(be2olak.data.filtered, aes(y=report.hr, x=rd.rp.stid, fill=rd.rp.stid)) + geom_boxplot() + stat_summary(fun.y=mean, geom = "point", shape= 4, size=3)
+
+ggplot(be2olak.data.filtered, aes(x=report.hr, y=rd.rp.stid, fill=report.hr)) + geom_jitter()
+```
 
 ### Plotting graphs for the different columns
 
