@@ -318,7 +318,11 @@ ggplot(be2olak.data.filtered, aes(x=rd.new)) + geom_bar()
 ggplot(be2olak.data.filtered, aes(x=rd.strq)) + geom_bar()
 ggplot(be2olak.data.filtered, aes(x=rd.cmrq)) + geom_bar()
 ggplot(be2olak.data.filtered, aes(x=report.hr)) + geom_bar()
+```
 
+The above graph shows that the most hour reported in the 5 basic reports, is 22.
+
+```{r, tidy=TRUE}
 # Factored Columns
 ggplot(be2olak.data.filtered, aes(x=rd.nm)) + geom_bar() + coord_flip() 
 ggplot(be2olak.data.filtered, aes(x=road.main)) + geom_bar() + coord_flip()
