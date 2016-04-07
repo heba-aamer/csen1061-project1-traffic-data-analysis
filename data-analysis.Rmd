@@ -17,144 +17,101 @@ library(pracma)
 library(tidyr)
 library(lubridate)
 library(XML)
-library(methods)
 library(pastecs)
 ```
 
-### Data Processing
+### Reading and Processing Data
+
+This section is responsible for reading the data and cleaning it.
+
+#### Data Reading
 
 ```{r, tidy=TRUE, cache=TRUE}
 be2olak.data <- read.csv("all-semi-unique.csv")
-summary(be2olak.data)
+names(be2olak.data)
 str(be2olak.data)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-#duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid == 9344516), ]
-#duplicated.rows
+dim(be2olak.data)
 ```
 
 ***
+
+#### Data Cleaning
+
+The aim of this section:
+
+* Remove not needed columns
+* Remove duplicated rows
+* Remove NAs
 
 #### Removing not needed columns
 
 By analyzing the distribution of some columns, I found that some of the columns only have one value, so these columns are not needed and should be deleted from the data.
 
-***
-
 ```{r, tidy=TRUE, cache=TRUE}
-col_ct = sapply(be2olak.data, function(x) length(unique(x)))
-print(col_ct)
-#be2olak.data <- subset(be2olak.data, select=-c(2:14,22,34))
-be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
+column_count = sapply(be2olak.data, function(x) length(unique(x)))
+be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(column_count[column_count==1])]
 ```
 
-Moreover, the 6 columns (rd.stid, rd.hr, rd.mn, rd.rp.fullnm, rd.img, rd.rp.img) are meaningless so I will remove them:
+Moreover, the 6 columns (rd.stid, rd.hr, rd.mn, rd.rp.fullnm, rd.img, rd.rp.img) are meaningless and want add anything to the data so I will remove them:
 
 ```{r, tidy=TRUE, cache=TRUE}
-col_ct = c("rd.stid", "rd.hr", "rd.mn", "rd.rp.fullnm", "rd.img", "rd.rp.img")
-print(col_ct)
+columns.delete = c("rd.stid", "rd.hr", "rd.mn", "rd.rp.fullnm", "rd.img", "rd.rp.img")
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
-print(!names(be2olak.data) %in% col_ct)
-be2olak.data <- be2olak.data[, !names(be2olak.data) %in% col_ct]
+be2olak.data <- be2olak.data[, !names(be2olak.data) %in% columns.delete]
 ```
 
 ```{r, tidy=TRUE, cache=TRUE}
-##nrow(be2olak.data) - length(is.na(be2olak.data$rd.img))
-#sum(is.na(be2olak.data$rd.img))
-#nrow(be2olak.data)
-#be2olak.data[!is.na(be2olak.data$rd.img),]
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-summary(be2olak.data)
-str(be2olak.data)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-be2olak.data[duplicated(be2olak.data[,2:ncol(be2olak.data)]),]
 stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
-```
-
-The proportion of NAs:
-
-```{r, tidy=TRUE, cache=TRUE}
-length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
-#barplot(sapply(be2olak.data, function(col) sum(is.na(col))))
 ```
 
 ***
 
 #### Removing Duplicated Rows
 
+Now we need only to keep the unique rows and remove any duplicates. In order to do that, I checked the number of unique rows with respect to more than one combination of columns to get what really affect the data.
+
 ```{r, tidy=TRUE, cache=TRUE}
-nrow(unique(be2olak.data[c("crawl_date", "rd.rp.stid", "rd.rp.cmid")]))
-nrow(unique(be2olak.data[c("rd.ri", "rd.rp.stid", "rd.rp.cmid")]))
-nrow(unique(be2olak.data[c("rd.rp.stid", "rd.rp.cmid")]))
+# with respect to comment id
 nrow(unique(be2olak.data[c("rd.rp.cmid")]))
-#dups <- duplicated(be2olak.data[,c(1,15,17)])
-#print(dups)
-#be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
+# with respect to status id, and comment id
+nrow(unique(be2olak.data[c("rd.rp.stid", "rd.rp.cmid")]))
+# with respect to road index, status id, and comment id
+nrow(unique(be2olak.data[c("rd.ri", "rd.rp.stid", "rd.rp.cmid")]))
 ```
 
-Remove duplicated comments:
+From the results presented above, the combination of (road index, status id, and comment id) would make the report entry unique.
+
+So now I will remove duplicated rows.
+
 ```{r, tidy=TRUE, cache=TRUE}
-dim(be2olak.data)
-#be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data)=="rd.rp.cmid" )]),]
 be2olak.data <- be2olak.data[!duplicated(be2olak.data[,which( colnames(be2olak.data) %in% c("rd.rp.cmid", "rd.rp.stid", "rd.ri") )]),]
+```
+
+Checking data summary again after removing the duplicated rows:
+
+```{r, tidy=TRUE, cache=TRUE}
 dim(be2olak.data)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-strq.cmrq <- be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
-nrow(strq.cmrq)
-head(strq.cmrq[,c(2:13)])
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-unique.cmid <- aggregate(rd.rp.stid ~ rd.rp.cmid, be2olak.data, length)
-duplicated.cmid <- unique.cmid[ which(unique.cmid$rd.rp.stid > 1), ]
-head(duplicated.cmid)
-tail(duplicated.cmid)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-duplicated.cmid.vector <- rbind(duplicated.cmid$rd.rp.cmid)
-#print(duplicated.cmid.vector)
-duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% duplicated.cmid.vector), ]
-nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
-```
-
-From above we reached that duplicated rows are only existing when rd.rp.nm is "be2ollakgps"
-
-```{r, tidy=TRUE, cache=TRUE}
-stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10),]) * 100.0/ nrow(duplicated.rows)
-print(stid10.percentage)
-```
-
-Check data summary again after removing the duplicated rows:
-```{r, tidy=TRUE, cache=TRUE}
 stargazer(be2olak.data, type = "text", title = "Descriptive statistics")
 summary(be2olak.data)
 str(be2olak.data)
 ```
 
 
-The proportion of NAs:
+***
+#### Investigate NAs
 
+First, lets check the proportion of NAs:
 ```{r, tidy=TRUE, cache=TRUE}
 length(be2olak.data[is.na(be2olak.data)])/(ncol(be2olak.data)*nrow(be2olak.data)) 
 ```
 
-```{r, tidy=TRUE, cache=TRUE}
-col_ct = sapply(be2olak.data, function(x) length(unique(x)))
-print(col_ct)
-be2olak.data <- be2olak.data[, !names(be2olak.data) %in% names(col_ct[col_ct==1])]
-```
+And from the summary results the Nas are there because of 2 columns (rd.rp.stid , rd.rp.rpImg)
+
+So for rd.rp.rpImg, it means that the reporter has uploaded a photo for the road. Otherwise, it means the he/she did not.
+
+So for my analysis, I am not concerned with photo itself, I am only concerned with the uploading action. So I will remove this column after adding one that has "YES" or "NO" representing whether this report has an uploaded photo or not.
 
 Get the most frequent strings in comments column
 
@@ -282,12 +239,36 @@ alex.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue
 length(alex.roads.id)
 ```
 
+```{r, tidy=TRUE, cache=TRUE}
+
+length(unique(c(unique(alex.roads.id),unique(cairo.roads.id))))
+```
+
+
 Then, add column representing the city in each row in the dataframe.
 
 ```{r, tidy=TRUE, cache=TRUE}
-be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
+#be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
+#str(be2olak.data)
+#levels(be2olak.data$city)
+#ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data$city[(be2olak.data$rd.ri %in% cairo.roads.id)] = "cairo"
+be2olak.data$city[(be2olak.data$rd.ri %in% alex.roads.id)] = "alex"
+be2olak.data$city <- as.factor(be2olak.data$city)
 str(be2olak.data)
+summary(be2olak.data$city)
 levels(be2olak.data$city)
+yarab2 <- unique(be2olak.data$rd.ri[is.na(be2olak.data$city)])
+print(yarab2)
+length(yarab2)
+yarab3 <- unique(be2olak.data$rd.nm[is.na(be2olak.data$city)])
+print(yarab3)
+yarab3 <- as.character(yarab3)
+print(yarab3)
+unique(be2olak.data$rd.ri[which(be2olak.data$rd.nm %in% c("Sa7rawy;Alex To Cairo"))])
 ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
 ```
 
@@ -329,12 +310,12 @@ Moreover, The comments are mainly about asking about radar and reporting radars 
 Those type of roads would need another analysis, but for my analysis I would remove those roads from the original data frame.
 
 ```{r, tidy=TRUE, cache=TRUE}
-ri.freq <- table(missing.stid$rd.ri)
-print(ri.freq)
-str(ri.freq)
-barplot(ri.freq, main = "Frequency of roads missing stid")
-func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
-plot(x = missing.stid$rd.ri, y = func)
+#ri.freq <- table(missing.stid$rd.ri)
+#print(ri.freq)
+#str(ri.freq)
+#barplot(ri.freq, main = "Frequency of roads missing stid")
+#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
+#plot(x = missing.stid$rd.ri, y = func)
 ```
 
 
@@ -357,6 +338,42 @@ Here are some ideas for Hypotheses that could be tried
 * [3] In (3otl, 7adsa, khatar), the probabitity of uploading an image in a report is significantly higher than in normal times.
 * [4] Leaving the default message of a status is higher than of write customized ones.
 * [5] [7:30 am - 9 am] and [2 pm - 4 pm] have higher rate of negative reports than in other times of the day.
+
+***
+***
+***
+
+CMRQ and STRQ
+
+```{r, tidy=TRUE, cache=TRUE}
+strq.cmrq <- be2olak.data[which(be2olak.data$rd.strq == be2olak.data$rd.cmrq),]
+nrow(strq.cmrq)
+head(strq.cmrq[,c(2:13)])
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+unique.cmid <- aggregate(rd.rp.stid ~ rd.rp.cmid, be2olak.data, length)
+duplicated.cmid <- unique.cmid[ which(unique.cmid$rd.rp.stid > 1), ]
+head(duplicated.cmid)
+tail(duplicated.cmid)
+```
+
+
+```{r, tidy=TRUE, cache=TRUE}
+duplicated.cmid.vector <- rbind(duplicated.cmid$rd.rp.cmid)
+#print(duplicated.cmid.vector)
+duplicated.rows <- be2olak.data[ which(be2olak.data$rd.rp.cmid %in% duplicated.cmid.vector), ]
+nrow(duplicated.rows[!duplicated.rows$rd.rp.nm %in% c("bey2ollakgps"),])
+```
+
+From above we reached that duplicated rows are only existing when rd.rp.nm is "be2ollakgps"
+
+```{r, tidy=TRUE, cache=TRUE}
+stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10),]) * 100.0/ nrow(duplicated.rows)
+print(stid10.percentage)
+```
+
+
 
 ***
 
