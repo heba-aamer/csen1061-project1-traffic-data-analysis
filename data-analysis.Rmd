@@ -160,53 +160,132 @@ freqfunc(missing.stid$rd.rp.cm, 60)
 ```
 
 
-```{r, tidy=TRUE, cache=TRUE}
-missing.stid <- missing.stid %>% separate(rd.nm, c("road.main"), extra = "drop", sep = ";", convert = F, remove = F)
-missing.stid$road.main <- as.factor(missing.stid$road.main)
-#missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
-summary(missing.stid)
-#print.data.frame(missing.stid)
-ggplot(missing.stid, aes(x=road.main, y=rd.nm)) + geom_jitter()
-```
-
 So after analyzing the rows that has stid with NAs so mainly they are highway roads and roads connecting between cities.
 
 Moreover, The comments are mainly about asking about radar and reporting radars or clear statuses.
 
-Those type of roads would need another analysis, but for my analysis I would remove those roads from the original data frame.
-
+Those type of roads would need another analysis, but for my analysis I would remove those entries from the original data frame since they are not relevant.
 
 ```{r, tidy=TRUE, cache=TRUE}
-
+be2olak.data <- be2olak.data %>% filter(!is.na(rd.rp.stid))
 ```
 
-
-
-```{r, tidy=TRUE, cache=TRUE}
-#ri.freq <- table(missing.stid$rd.ri)
-#print(ri.freq)
-#str(ri.freq)
-#barplot(ri.freq, main = "Frequency of roads missing stid")
-#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
-#plot(x = missing.stid$rd.ri, y = func)
-```
-
-
-
-***
-***
-***
-
-Get the most frequent strings in comments column
+Now check that all NAs have been removed
 
 ```{r, tidy=TRUE, cache=TRUE}
-freqfunc <- function(x, n){
-  tail(sort(table(unlist(strsplit(as.character(x), ", ")))), n)
-}
-freqfunc(be2olak.data$rd.rp.cm, 10)
+length(be2olak.data[is.na(be2olak.data)]) 
 ```
 
 ***
+
+### Feature Engineering
+
+In this section, I will do some feature engineering.
+
+
+#### Format Crawl Date in a better way
+
+The crawling date is presented in a way that we could make a use of to get the other columns that might help in viewing relations between columns.
+
+Moreover, it will allow us to get the actual date of report from a user, which in case of "za7ma" reports for example, it will get the actual time of the phenomenon.
+
+So to do this, there are 2 main steps:
+
+* First, is to split the crawl date into week day, month, month day, crawl-date (as hours - minutes - seconds) only.
+
+* Then form a new column representing this a formated crawling date.
+
+* Then get the actual reports date (taking into consideration the difference between EET and UCT).
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = F)
+be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$Crawl.time, format="%a %b %d %H:%M:%S"))
+```
+
+***
+
+#### Get Comment's Actual Time
+
+```{r, tidy=TRUE, cache=TRUE}
+
+# Adding 2 hours to get Egypt's local time instead of UTC
+# Remove the duration of the report has been posted presented by rd.rp.hr and rd.rp.mn
+
+be2olak.data$comment.time <- be2olak.data$formated.date + hours(2) - hours(be2olak.data$rd.rp.hr) - minutes(be2olak.data$rd.rp.mn)
+```
+
+Then remove not needed columns in this case
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data$formated.date <- NULL
+be2olak.data$rd.rp.hr <- NULL
+be2olak.data$rd.rp.mn <- NULL
+be2olak.data$Crawl_date <- NULL
+be2olak.data$Crawl_time <- NULL
+```
+
+
+Then check the stats of the dataframe
+
+```{r, tidy=TRUE, cache=TRUE}
+str(be2olak.data)
+summary(be2olak.data)
+glimpse(be2olak.data)
+```
+
+***
+
+#### Add the city for each entry
+
+Another thing that could be done related to augmenting the data, is to add a column representing the city of each the road being reported on, whether it is "cairo" or "alex". And this is done in the next section.
+
+First, get the ids of the roads in Cairo.
+
+```{r, tidy=TRUE, cache=TRUE}
+
+# Get Cairo Road ids
+
+doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=0&lang=1")
+cairo.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
+length(cairo.roads.id)
+```
+
+Then, get the ids of the roads in Alex.
+
+```{r, tidy=TRUE, cache=TRUE}
+
+# Get Alex Road ids
+
+doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=1&lang=1")
+alex.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
+length(alex.roads.id)
+```
+
+Then, add column representing the city in each row in the dataframe.
+
+```{r, tidy=TRUE, cache=TRUE}
+#be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
+#str(be2olak.data)
+#levels(be2olak.data$city)
+#ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
+```
+
+```{r, tidy=TRUE, cache=TRUE}
+be2olak.data$city[(be2olak.data$rd.ri %in% cairo.roads.id)] = "cairo"
+be2olak.data$city[(be2olak.data$rd.ri %in% alex.roads.id)] = "alex"
+#be2olak.data$city <- as.factor(be2olak.data$city)
+ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
+```
+
+Now check if city has introduced NAs.
+
+```{r, tidy=TRUE, cache=TRUE}
+unique(be2olak.data$rd.nm[is.na(be2olak.data$city)])
+```
+
+
+***
+
 
 #### Plotting graphs for the different columns
 
@@ -249,148 +328,6 @@ However, 8 and 9 were difficult to find in the feed.
 ```
 
 ***
-
-### Feature Engineering
-
-The crawling date is presented in a way that we could make a use of to get the other columns that might help in viewing relations between columns.
-
-Moreover, it will allow us to get the actual date of report from a user, which in case of "za7ma" reports for example, it will get the actual time of the phenomenon.
-
-So to do this, there are 2 main steps:
-
-* First, is to split the crawl date into week day, month, month day, crawl-date (as hours - minutes - seconds) only.
-
-* Then form a new column representing this a formated crawling date.
-
-* Then get the actual reports date (taking into consideration the difference between EET and UCT).
-
-#### Format Crawl Date in a better way
-
-```{r, tidy=TRUE, cache=TRUE}
-new.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = TRUE, remove = TRUE) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = FALSE)
-summary(new.data)
-str(new.data)
-new.data$formated.date <- as.POSIXct(strptime(new.data$Crawl.time, format="%a %b %d %H:%M:%S"))
-str(new.data)
-summary(new.data)
-#new.data$Crawl_date <- as.Date(as.character(new.data$Crawl_date))
-#str(new.data)
-```
-
-***
-
-#### Get Comment's Actual Time
-
-```{r, tidy=TRUE, cache=TRUE}
-
-# Adding 2 hours to get Egypt's local time instead of UTC
-# Remove the duration of the report has been posted presented by rd.rp.hr and rd.rp.mn
-
-new.data$comment.time <- new.data$formated.date + hours(2) - hours(new.data$rd.rp.hr) - minutes(new.data$rd.rp.mn)
-
-str(new.data)
-summary(new.data)
-glimpse(new.data)
-#View(new.data)
-```
-
-***
-
-Another thing that could be done related to augmenting the data, is to add a column representing the city of each the road being reported on, whether it is "cairo" or "alex". And this is done in the next section.
-
-#### Add the city for each entry
-
-First, get the ids of the roads in Cairo.
-
-```{r, tidy=TRUE, cache=TRUE}
-
-# Get Cairo Road ids
-
-doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=0&lang=1")
-cairo.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
-length(cairo.roads.id)
-
-```
-
-Then, get the ids of the roads in Alex.
-
-```{r, tidy=TRUE, cache=TRUE}
-
-# Get Alex Road ids
-
-doc <- htmlParse("http://www.bey2ollak.com/Bey2ollak/Traffic?action=getTraffic&ver=1.0&w=320&h=240&deviceType=10&lang=1&protocol=1&city=1&lang=1")
-alex.roads.id <- sapply(getNodeSet(doc, "//ri"), function(x) as.integer(xmlValue(x)))
-length(alex.roads.id)
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-length(unique(c(unique(alex.roads.id),unique(cairo.roads.id))))
-```
-
-
-Then, add column representing the city in each row in the dataframe.
-
-```{r, tidy=TRUE, cache=TRUE}
-#be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
-#str(be2olak.data)
-#levels(be2olak.data$city)
-#ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-be2olak.data$city[(be2olak.data$rd.ri %in% cairo.roads.id)] = "cairo"
-be2olak.data$city[(be2olak.data$rd.ri %in% alex.roads.id)] = "alex"
-be2olak.data$city <- as.factor(be2olak.data$city)
-str(be2olak.data)
-summary(be2olak.data$city)
-levels(be2olak.data$city)
-yarab2 <- unique(be2olak.data$rd.ri[is.na(be2olak.data$city)])
-print(yarab2)
-length(yarab2)
-yarab3 <- unique(be2olak.data$rd.nm[is.na(be2olak.data$city)])
-print(yarab3)
-yarab3 <- as.character(yarab3)
-print(yarab3)
-unique(be2olak.data$rd.ri[which(be2olak.data$rd.nm %in% c("Sa7rawy;Alex To Cairo"))])
-ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
-```
-
-```{r, tidy=TRUE, cache=TRUE}
-#stat.desc(be2olak.data)
-#tapply(be2olak.data$rd.rp.stid, be2olak.data$city, mean)
-```
-
-***
-
-### Exploring the NAs of the rd.rp.stid column
-
-```{r, tidy=TRUE, cache=TRUE}
-missing.stid <- be2olak.data[is.na(be2olak.data$rd.rp.stid), c("rd.rp.cm", "rd.ri", "city", "rd.nm")]
-str(missing.stid)
-summary(missing.stid)
-ggplot(missing.stid) + geom_bar(aes(x = city), fill = "gray")
-plot(missing.stid$city, main = "city missing ratio")
-ggplot(missing.stid) + geom_bar(aes(x = rd.ri), fill = "red")
-hist(missing.stid$rd.ri, xlab = "Comment status", 10)
-hist(missing.stid$rd.ri, freq = F, xlab = "Comment status", 40)
-freqfunc(missing.stid$rd.rp.cm, 80)
-```
-
-
-```{r, tidy=TRUE, cache=TRUE}
-missing.stid <- missing.stid %>% separate(rd.nm, c("MainRoad", "PartOfRoad"), extra = "drop", sep = ";", convert = TRUE, remove = F)
-missing.stid$MainRoad <- as.factor(missing.stid$MainRoad)
-missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
-summary(missing.stid)
-#print.data.frame(missing.stid)
-ggplot(missing.stid, aes(x=MainRoad, y=rd.ri)) + geom_tile(aes(fill=city))
-```
-
-So after analyzing the rows that has stid with NAs so mainly they are highway roads and roads connecting between cities, so it is inconvenient for say that they do belong to one city according to the direction of the road.
-
-Moreover, The comments are mainly about asking about radar and reporting radars or clear statuses.
-
-Those type of roads would need another analysis, but for my analysis I would remove those roads from the original data frame.
 
 ```{r, tidy=TRUE, cache=TRUE}
 #ri.freq <- table(missing.stid$rd.ri)
@@ -456,6 +393,51 @@ stid10.percentage <- nrow(duplicated.rows[which(duplicated.rows$rd.rp.stid == 10
 print(stid10.percentage)
 ```
 
+
+
+***
+***
+***
+```{r, tidy=TRUE, cache=TRUE}
+missing.stid <- missing.stid %>% separate(rd.nm, c("road.main"), extra = "drop", sep = ";", convert = F, remove = F)
+missing.stid$road.main <- as.factor(missing.stid$road.main)
+#missing.stid$rd.ri <- as.factor(missing.stid$rd.ri)
+summary(missing.stid)
+#print.data.frame(missing.stid)
+ggplot(missing.stid, aes(x=road.main, y=rd.nm)) + geom_jitter()
+```
+
+
+
+```{r, tidy=TRUE, cache=TRUE}
+
+```
+
+
+
+```{r, tidy=TRUE, cache=TRUE}
+#ri.freq <- table(missing.stid$rd.ri)
+#print(ri.freq)
+#str(ri.freq)
+#barplot(ri.freq, main = "Frequency of roads missing stid")
+#func <- missing.stid$rd.ri*100.0/nrow(missing.stid)
+#plot(x = missing.stid$rd.ri, y = func)
+```
+
+
+
+***
+***
+***
+
+Get the most frequent strings in comments column
+
+```{r, tidy=TRUE, cache=TRUE}
+freqfunc <- function(x, n){
+  tail(sort(table(unlist(strsplit(as.character(x), ", ")))), n)
+}
+freqfunc(be2olak.data$rd.rp.cm, 10)
+```
 
 
 ***
