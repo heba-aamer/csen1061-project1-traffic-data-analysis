@@ -100,6 +100,7 @@ str(be2olak.data)
 
 
 ***
+
 #### Investigate NAs
 
 First, lets check the proportion of NAs:
@@ -182,7 +183,6 @@ length(be2olak.data[is.na(be2olak.data)])
 
 In this section, I will do some feature engineering.
 
-
 #### Format Crawl Date in a better way
 
 The crawling date is presented in a way that we could make a use of to get the other columns that might help in viewing relations between columns.
@@ -197,16 +197,24 @@ So to do this, there are 2 main steps:
 
 * Then get the actual reports date (taking into consideration the difference between EET and UCT).
 
-```{r, tidy=TRUE, cache=TRUE}
-be2olak.data <- be2olak.data %>% separate(crawl_date, c("Week_day", "Month", "Month_day", "Crawl_date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(Crawl.time, Week_day, Month, Month_day, Crawl_date, sep = " ", remove = F)
-be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$Crawl.time, format="%a %b %d %H:%M:%S"))
+```{r, tidy=T}
+be2olak.data <- be2olak.data %>% separate(crawl_date, c("week.day", "month", "month.day", "crawl.date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(crawl.time, week.day, month, month.day, crawl.date, sep = " ", remove = F)
+be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$crawl.time, format="%a %b %d %H:%M:%S"))
+be2olak.data$week.day <- as.factor(be2olak.data$week.day)
+```
+
+```{r, tidy=TRUE}
+#be2olak.data <- be2olak.data %>% separate(crawl_date, c("week.day", "month", "month.day", "crawl.date"), extra = "drop", sep = "[ ]+", convert = T, remove = T) %>% unite(crawl.time, week.day, month, month.day, crawl.date, sep = " ", remove = F)
+
+#be2olak.data$formated.date <- as.POSIXct(strptime(be2olak.data$crawl.time, format="%a %b %d %H:%M:%S"))
+#be2olak.data$week.day <- as.factor(be2olak.data$week.day)
 ```
 
 ***
 
 #### Get Comment's Actual Time
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 
 # Adding 2 hours to get Egypt's local time instead of UTC
 # Remove the duration of the report has been posted presented by rd.rp.hr and rd.rp.mn
@@ -216,18 +224,19 @@ be2olak.data$comment.time <- be2olak.data$formated.date + hours(2) - hours(be2ol
 
 Then remove not needed columns in this case
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 be2olak.data$formated.date <- NULL
 be2olak.data$rd.rp.hr <- NULL
 be2olak.data$rd.rp.mn <- NULL
-be2olak.data$Crawl_date <- NULL
-be2olak.data$Crawl_time <- NULL
+be2olak.data$crawl.date <- NULL
+be2olak.data$crawl.time <- NULL
+# Moreover, month would not be needed since it is the same for all the data
+be2olak.data$month <- NULL
 ```
-
 
 Then check the stats of the dataframe
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 str(be2olak.data)
 summary(be2olak.data)
 glimpse(be2olak.data)
@@ -241,7 +250,7 @@ Another thing that could be done related to augmenting the data, is to add a col
 
 First, get the ids of the roads in Cairo.
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 
 # Get Cairo Road ids
 
@@ -252,7 +261,7 @@ length(cairo.roads.id)
 
 Then, get the ids of the roads in Alex.
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 
 # Get Alex Road ids
 
@@ -263,31 +272,71 @@ length(alex.roads.id)
 
 Then, add column representing the city in each row in the dataframe.
 
-```{r, tidy=TRUE, cache=TRUE}
-#be2olak.data$city <- as.factor(ifelse(be2olak.data$rd.ri %in% cairo.roads.id, "cairo", "alex"))
-#str(be2olak.data)
-#levels(be2olak.data$city)
-#ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
-```
-
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 be2olak.data$city[(be2olak.data$rd.ri %in% cairo.roads.id)] = "cairo"
 be2olak.data$city[(be2olak.data$rd.ri %in% alex.roads.id)] = "alex"
 #be2olak.data$city <- as.factor(be2olak.data$city)
 ggplot(be2olak.data) + geom_bar(aes(x = city), fill = "gray")
 ```
 
-Now check if city has introduced NAs.
+Now check in who many rows city is NA.
 
-```{r, tidy=TRUE, cache=TRUE}
+```{r, tidy=TRUE}
 unique(be2olak.data$rd.nm[is.na(be2olak.data$city)])
 ```
 
+So this made me suspicious why this happened. So I will discuss the findings at the end of this EDA. But for now I have two options either to add the missing cities since they are only 5 roads. Or to remove that city column since my findings was not promising.
+
+So I will take the second choice.
+
+```{r, tidy=TRUE}
+be2olak.data$city <- NULL
+```
+
+#### Get the main road name from rd.nm
+
+Another thing that could be done is to make a new column (road.main) from the rd.nm which is the first part of the road name, since this might introduce some visualisations or relations between two sides of the road.
+
+```{r, tidy=TRUE}
+be2olak.data <- be2olak.data %>% separate(rd.nm, c("road.main"), extra = "drop", sep = ";", convert = F, remove = F)
+be2olak.data$road.main <- as.factor(be2olak.data$road.main)
+```
 
 ***
 
+### Plotting graphs for the different columns
 
-#### Plotting graphs for the different columns
+First, Plotting the integer columns and Factored columns.
+
+```{r, tidy=TRUE}
+# Integer Columns
+ggplot(be2olak.data, aes(x=rd.rp.stid)) + geom_bar()
+ggplot(be2olak.data, aes(x=rd.ri)) + geom_bar()
+ggplot(be2olak.data, aes(x=month.day)) + geom_bar()
+ggplot(be2olak.data, aes(x=rd.new)) + geom_bar()
+ggplot(be2olak.data, aes(x=rd.strq)) + geom_bar()
+ggplot(be2olak.data, aes(x=rd.cmrq)) + geom_bar()
+
+# Factored Columns
+ggplot(be2olak.data, aes(x=rd.nm)) + geom_bar()
+ggplot(be2olak.data, aes(x=road.main)) + geom_bar()
+ggplot(be2olak.data, aes(x=week.day)) + geom_bar()
+ggplot(be2olak.data, aes(x=rp.has.photo)) + geom_bar()
+```
+
+Second Plotting the time column
+```{r, tidy=TRUE}
+ggplot(be2olak.data, aes(x=comment.time)) + geom_density()
+```
+
+
+### Visualising and Stating statistics for part of data
+
+Of course one of the most important questions, that I am interested to prove is that that
+
+
+
+### Plotting graphs for the different columns
 
 ```{r, tidy=TRUE, cache=TRUE}
 status <- be2olak.data$rd.rp.stid
